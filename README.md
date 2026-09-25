@@ -88,9 +88,3 @@ python compressor.py decompress output.hcm restored.txt
 - Max upload size is capped at 32 MB (configurable in `app.py`)
 - Text is decoded as UTF-8 with a Latin-1 fallback for non-UTF-8 files
 - `.hcm` files are only valid when read back by this project's own decompressor
-
----
-
-## 📄 License
-
-Feel free to use, modify, and learn from this project.
