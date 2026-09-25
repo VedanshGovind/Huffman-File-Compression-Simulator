@@ -1,0 +1,112 @@
+HUFFMAN COMPRESSION TEST FILE
+=============================
+Purpose:  a round-trip test document for the Huffman Compression Simulator.
+Method:   1) Compress this file.   2) Decompress the .hcm.   3) Compare —
+          the recovered text must match this file EXACTLY, character for
+          character, including every space, newline and symbol.
+
+
+SECTION 1 — PROSE (real English, natural letter frequencies)
+------------------------------------------------------------
+Data compression has been part of computing since the earliest days of
+electronic machines. Before Huffman, most systems stored text in fixed
+width: every character took exactly eight bits, whether it was a common
+letter like e or a rare one like q. That wastes an enormous amount of
+space, because English is not evenly distributed. The letter e appears
+roughly thirteen percent of the time, while z appears far less often.
+
+Huffman coding exploits exactly this unevenness. It builds a tree from the
+actual frequencies of the file being compressed, so the code is tuned to
+this document in particular. That is why the code table shown by the
+simulator will look different if you compress a different file: the same
+letter can be one or two bits here and three or four bits somewhere else.
+
+Lossless compression is a promise: nothing may be lost on the way in and
+out. A single dropped bit in the middle of a file can shift every symbol
+that follows, which is why the decoder walks the stored tree one bit at a
+time instead of chopping the stream into fixed-size pieces. If the tree in
+the header and the bitstream payload ever disagree, the decoder will tell
+you the file is corrupt instead of silently producing garbage.
+
+
+SECTION 2 — NUMBERS AND MATH (digits, operators, parentheses)
+-------------------------------------------------------------
+The quick brown fox jumps over the lazy dog 31 times.
+Check the arithmetic: 2 + 2 = 4, 7 * 6 = 42, 100 / 4 = 25, 99 % 7 = 1.
+A few bigger ones: 1,000,000 = 10^6 and 2^10 = 1,024, close to one thousand.
+Fibonacci, first twenty terms: 0, 1, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89,
+144, 233, 377, 610, 987, 1597, 2584, 4181. Each is the sum of the two
+before it, and the ratio of neighbours creeps towards phi, 1.6180339887...
+Percentages for the stat cards: a file that halves in size saved 50.00%;
+a file that grows by one byte over 100 saved -1.00%.
+
+
+SECTION 3 — CODE SNIPPLET (braces, colons, indentation, quotes)
+--------------------------------------------------------------
+def hello(name):
+    greeting = "Hello, " + name + "!"
+    print(greeting.upper())
+    return len(greeting)
+
+for i in range(3):
+    if i % 2 == 0:
+        print(f"even: {i}")
+    else:
+        print(f"odd:  {i}")
+
+# Dictionaries hold the frequency table in this very project:
+counts = {"a": 12, "b": 5, "c": 9}
+total = sum(counts.values())
+most_common = max(counts, key=counts.get)
+assert counts["a"] == 12 and total == 26
+
+
+SECTION 4 — PUNCTUATION PARTY (quotes, dashes, brackets, symbols)
+-----------------------------------------------------------------
+"Quoted speech," she said, "is where punctuation gets interesting:
+apostrophes (it's, don't), hyphens (well-known, state-of-the-art),
+em dashes (like this one), ellipses... and brackets [nested (parentheses)
+that keep track of each other]. Semicolons; end; here. Exclamation marks
+belong to excitement! Questions belong to curiosity? And the &amp; and
+@ # $ % ^ * ~ | \ backslash complete the row of keyboard symbols."
+
+
+SECTION 5 — UNICODE (accents, scripts, an emoji or two)
+-------------------------------------------------------
+Café, naïve, façade, señor, über, jalapeño, piñata, Smörgåsbord.
+A touch of other alphabets: Привет, Спасибо. 中文示例. 한 줄 예시.
+Symbols that travel well: ✓ ✗ → ← ★ ∞ ≈ ± °
+And one rocket, for good measure: 🚀
+(If the emoji survives the round trip, the codec is properly unicode-safe.)
+
+
+SECTION 6 — STRUCTURE (lists, headers, blanks and alignment)
+------------------------------------------------------------
+1. First, upload this file.
+2. Then press Compress and note the space saved.
+3. Download the .hcm file and upload it again.
+4. Press Decompress and compare with the original.
+5. If everything matches, the round trip is verified.
+
+   key          value     status
+   ------------ -------   ------
+   original     ~12 KB    measured
+   compressed   smaller   expected
+   saved        > 0 %     expected
+   round trip   exact     required
+
+
+APPENDIX — PANGRAM STRESS BLOCK (rare letters, all 26 in every sentence)
+------------------------------------------------------------------------
+The quick brown fox jumps over the lazy dog, again and again.
+Pack my box with five dozen liquor jugs.
+Sphinx of black quartz, judge my vow.
+How vexingly quick daft zebras jump!
+The five boxing wizards jump quickly.
+Jackdaws love my big sphinx of quartz.
+Bright vixens jump; dozy fowl quack.
+The jinxed wizard's quartz box glows.
+Quick zephyrs vex the dark fjord.
+Bawdy jazz clowns quiz the fox's quiver.
+(Repeats are intentional: this block exists to stress the codec with rare
+characters like q, z, x, j and v, and to give the tree plenty of structure.)

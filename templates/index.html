@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Huffman Compression Simulator</title>
+<style>
+  :root {
+    --bg: #f4f6fb; --card: #ffffff; --ink: #1e2333; --muted: #697086;
+    --accent: #4f46e5; --accent-soft: #eef0ff; --ok: #0f9d58; --err: #d93025;
+    --line: #e5e7eb;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  .wrap { max-width: 880px; margin: 0 auto; padding: 42px 20px 64px; }
+  header { text-align: center; margin-bottom: 30px; }
+  h1 { margin: 0 0 8px; font-size: 30px; letter-spacing: -0.02em; }
+  .subtitle { margin: 0; color: var(--muted); font-size: 15px; }
+  .card {
+    background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+    padding: 22px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(20, 24, 40, 0.06);
+  }
+  .card h2 { margin: 0 0 14px; font-size: 17px; }
+
+  .dropzone {
+    border: 2px dashed #c8cde3; border-radius: 12px; padding: 28px 16px;
+    text-align: center; cursor: pointer; transition: border-color 0.15s, background 0.15s;
+  }
+  .dropzone:hover, .dropzone.drag { border-color: var(--accent); background: var(--accent-soft); }
+  .dropzone .icon { font-size: 30px; }
+  .dropzone p { margin: 8px 0 0; color: var(--muted); font-size: 14px; }
+  .dropzone .picked { color: var(--ink); font-weight: 600; }
+
+  .actions { display: flex; gap: 12px; justify-content: center; margin-top: 18px; flex-wrap: wrap; }
+  .btn {
+    border: 0; border-radius: 10px; padding: 11px 22px; font-size: 15px; font-weight: 600;
+    cursor: pointer; transition: filter 0.15s, transform 0.05s;
+  }
+  .btn:active { transform: translateY(1px); }
+  .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-secondary { background: var(--accent-soft); color: var(--accent); }
+  .btn-primary:hover:not(:disabled), .btn-secondary:hover:not(:disabled) { filter: brightness(0.95); }
+
+  .msg { margin-top: 16px; font-size: 14px; text-align: center; }
+  .msg.error { color: var(--err); }
+  .msg.ok { color: var(--ok); }
+  .msg:empty { display: none; }
+
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 18px; }
+  .stat { background: #f8f9fe; border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; }
+  .stat .label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+  .stat .value { font-size: 21px; font-weight: 650; margin-top: 4px; font-variant-numeric: tabular-nums; }
+  .stat .value.save-pos { color: var(--ok); }
+  .stat .value.save-neg { color: var(--err); }
+
+  .table-scroll { max-height: 320px; overflow: auto; border: 1px solid var(--line); border-radius: 10px; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th, td { padding: 8px 10px; border-bottom: 1px solid var(--line); text-align: left; }
+  th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); position: sticky; top: 0; background: #fff; }
+  tr:last-child td { border-bottom: 0; }
+  td.char, td.code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  td.code { color: var(--accent); }
+
+  pre.recovered {
+    background: #f8f9fe; border: 1px solid var(--line); border-radius: 10px;
+    padding: 14px; max-height: 320px; overflow: auto; white-space: pre-wrap; word-break: break-word;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px;
+    margin: 0 0 4px;
+  }
+  .hint { color: var(--muted); font-size: 13px; margin-top: 10px; }
+  .steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; }
+  .step { background: #f8f9fe; border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; font-size: 13.5px; color: #3c4257; line-height: 1.45; }
+  .step b { display: block; margin-bottom: 4px; color: var(--ink); }
+  .hidden { display: none; }
+  footer { text-align: center; color: var(--muted); font-size: 12.5px; margin-top: 8px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Huffman Compression Simulator</h1>
+    <p class="subtitle">Compress a text file with a from-scratch Huffman coder, inspect the codes, then decompress it back and verify.</p>
+  </header>
+
+  <!-- Upload card -->
+  <section class="card">
+    <div id="dropzone" class="dropzone">
+      <div class="icon">📄</div>
+      <p id="dzText">Click to choose a file, or drag &amp; drop it here</p>
+    </div>
+    <input type="file" id="fileInput" hidden accept=".txt,.hcm,.csv,.md,.log,.json,.js,.py,text/*" />
+    <div class="actions">
+      <button class="btn btn-primary" id="btnCompress" disabled>Compress</button>
+      <button class="btn btn-secondary" id="btnDecompress" disabled>Decompress</button>
+    </div>
+    <div class="msg" id="msg"></div>
+    <p class="hint" style="text-align:center;">
+      No file handy? <span class="sample-link" id="loadSample" style="color:var(--accent);cursor:pointer;text-decoration:underline;">Load sample text</span>
+    </p>
+  </section>
+
+  <!-- Compress results -->
+  <section class="card hidden" id="compressResults">
+    <h2>Compression results — <span id="crName"></span></h2>
+    <div class="stats" id="statGrid"></div>
+    <div id="overheadNote" class="hint hidden"></div>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>Character</th><th>Code</th><th>Code length</th><th>Frequency</th></tr></thead>
+        <tbody id="codeTable"></tbody>
+      </table>
+    </div>
+    <div class="actions">
+      <button class="btn btn-primary" id="btnDownload">Download compressed file (.hcm)</button>
+    </div>
+  </section>
+
+  <!-- Decompress results -->
+  <section class="card hidden" id="decompressResults">
+    <h2>Decompressed original</h2>
+    <div class="stats" id="dstatGrid"></div>
+    <pre class="recovered" id="recoveredText"></pre>
+    <div class="actions">
+      <button class="btn btn-primary" id="btnDownloadOriginal">Download original (.txt)</button>
+    </div>
+  </section>
+
+  <!-- How it works -->
+  <section class="card">
+    <h2>How it works</h2>
+    <div class="steps">
+      <div class="step"><b>1. Frequency table</b>Count how often each character appears in the file.</div>
+      <div class="step"><b>2. Min-heap tree</b>Repeatedly merge the two least-frequent nodes (via <code>heapq</code>) until one Huffman tree remains.</div>
+      <div class="step"><b>3. Codes &amp; encode</b>Walk the tree (left = 0, right = 1) to build variable-length codes - frequent characters get shorter ones. The tree is pickled into the file header so it decompresses on its own.</div>
+    </div>
+  </section>
+</div>
+
+<script>
+(function () {
+  const fileInput = document.getElementById('fileInput');
+  const dropzone = document.getElementById('dropzone');
+  const dzText = document.getElementById('dzText');
+  const btnCompress = document.getElementById('btnCompress');
+  const btnDecompress = document.getElementById('btnDecompress');
+  const msg = document.getElementById('msg');
+  let currentFile = null;
+
+  const SAMPLE_TEXT = [
+    "Huffman coding is a lossless compression algorithm invented by David A. Huffman in 1952.",
+    "It works by assigning shorter binary codes to characters that appear more often and longer",
+    "codes to characters that appear less often, which reduces the total number of bits needed to",
+    "store the text. For example, in this paragraph the letter e appears far more often than the",
+    "letter z, so e gets a short code and z gets a longer one. The Huffman tree itself is stored",
+    "in the compressed file header, which means any file produced by this tool can be decoded on",
+    "its own without any extra information. The whole pipeline is implemented from scratch in",
+    "Python using only the standard library: a frequency table, a min-heap built with heapq, a",
+    "tree traversal to generate the codes, and a decoder that walks the same tree bit by bit.",
+  ].join(" ");
+
+  function humanSize(n) {
+    if (n < 1024) return n + " B";
+    if (n < 1024 * 1024) return (n / 1024).toFixed(2) + " KB";
+    return (n / (1024 * 1024)).toFixed(2) + " MB";
+  }
+
+  function displayChar(ch) {
+    if (ch === " ") return "␣ space";
+    if (ch === "\n") return "⏎ newline";
+    if (ch === "\r") return "␍ CR";
+    if (ch === "\t") return "␉ tab";
+    if (ch.charCodeAt(0) < 32) return "\\u" + ch.charCodeAt(0).toString(16).padStart(4, "0");
+    return ch;
+  }
+
+  function setFile(file) {
+    currentFile = file;
+    dzText.textContent = "";
+    const name = document.createElement('span');
+    name.className = 'picked';
+    name.textContent = file.name + " (" + humanSize(file.size) + ")";
+    dzText.appendChild(name);
+    dzText.appendChild(document.createTextNode(" — click to change"));
+    btnCompress.disabled = false;
+    btnDecompress.disabled = false;
+    showMsg('', '');
+  }
+
+  function showMsg(kind, text) {
+    msg.className = 'msg ' + kind;
+    msg.textContent = text;
+  }
+
+  function statCard(label, value, extraClass) {
+    const d = document.createElement('div');
+    d.className = 'stat';
+    const l = document.createElement('div');
+    l.className = 'label';
+    l.textContent = label;
+    const v = document.createElement('div');
+    v.className = 'value' + (extraClass ? ' ' + extraClass : '');
+    v.textContent = value;
+    d.appendChild(l);
+    d.appendChild(v);
+    return d;
+  }
+
+  function base64ToBlob(b64) {
+    const bin = atob(b64);
+    const arr = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+    return new Blob([arr], { type: 'application/octet-stream' });
+  }
+
+  function downloadBlob(blob, name) {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  }
+
+  async function postTo(url, file) {
+    const fd = new FormData();
+    fd.append('file', file);
+    const res = await fetch(url, { method: 'POST', body: fd });
+    let data = null;
+    try { data = await res.json(); } catch (e) { /* non-JSON error page */ }
+    if (!res.ok || !data || data.error) {
+      throw new Error((data && data.error) || ('Server error (HTTP ' + res.status + ')'));
+    }
+    return data;
+  }
+
+  btnCompress.addEventListener('click', async () => {
+    if (!currentFile) return;
+    btnCompress.disabled = true;
+    showMsg('', 'Compressing…');
+    document.getElementById('compressResults').classList.add('hidden');
+    document.getElementById('decompressResults').classList.add('hidden');
+    try {
+      const data = await postTo('/compress', currentFile);
+      const s = data.stats;
+
+      document.getElementById('crName').textContent = data.filename;
+      const grid = document.getElementById('statGrid');
+      grid.innerHTML = '';
+      grid.appendChild(statCard('Original size', humanSize(s.original_size)));
+      grid.appendChild(statCard('Compressed size', humanSize(s.compressed_size)));
+      grid.appendChild(statCard(
+        'Space saved', s.percent_saved + '%',
+        s.bytes_saved >= 0 ? 'save-pos' : 'save-neg'
+      ));
+      grid.appendChild(statCard('Unique characters', s.unique_chars));
+
+      const note = document.getElementById('overheadNote');
+      if (s.bytes_saved < 0 && s.original_size > 0) {
+        note.classList.remove('hidden');
+        note.textContent = 'Note: the compressed file is actually larger here because the pickled Huffman-tree header overhead outweighs the savings - try a bigger file to see real compression kick in.';
+      } else {
+        note.classList.add('hidden');
+      }
+
+      const tbody = document.getElementById('codeTable');
+      tbody.innerHTML = '';
+      if (s.code_table.length === 0) {
+        const tr = document.createElement('tr');
+        const td = document.createElement('td');
+        td.colSpan = 4;
+        td.textContent = '(file is empty — no characters to encode)';
+        tr.appendChild(td);
+        tbody.appendChild(tr);
+      } else {
+        s.code_table.forEach(row => {
+          const tr = document.createElement('tr');
+          const td1 = document.createElement('td'); td1.className = 'char'; td1.textContent = displayChar(row.char);
+          const td2 = document.createElement('td'); td2.className = 'code'; td2.textContent = row.code;
+          const td3 = document.createElement('td'); td3.textContent = row.code.length + ' bit' + (row.code.length > 1 ? 's' : '');
+          const td4 = document.createElement('td'); td4.textContent = row.freq;
+          tr.append(td1, td2, td3, td4);
+          tbody.appendChild(tr);
+        });
+      }
+
+      if (s.total_chars === 0) {
+        showMsg('ok', 'File is empty — the compressed file contains only the (empty) header. Nothing was encoded.');
+      } else {
+        showMsg('ok', 'Compressed ' + humanSize(s.original_size) + ' → ' + humanSize(s.compressed_size) + ' (' + s.percent_saved + '% saved). The code table is below — download the .hcm and re-upload it to Decompress!');
+      }
+      document.getElementById('btnDownload').onclick = () =>
+        downloadBlob(base64ToBlob(data.compressed_base64), data.compressed_name);
+      document.getElementById('compressResults').classList.remove('hidden');
+      document.getElementById('compressResults').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    } catch (err) {
+      showMsg('error', err.message);
+    } finally {
+      btnCompress.disabled = false;
+    }
+  });
+
+  btnDecompress.addEventListener('click', async () => {
+    if (!currentFile) return;
+    btnDecompress.disabled = true;
+    showMsg('', 'Decompressing…');
+    document.getElementById('compressResults').classList.add('hidden');
+    document.getElementById('decompressResults').classList.add('hidden');
+    try {
+      const data = await postTo('/decompress', currentFile);
+      const grid = document.getElementById('dstatGrid');
+      grid.innerHTML = '';
+      grid.appendChild(statCard('Compressed size', humanSize(data.compressed_size)));
+      grid.appendChild(statCard('Original size', humanSize(data.original_size)));
+      grid.appendChild(statCard(
+        'Size ratio',
+        (data.compressed_size > 0 ? (data.original_size / data.compressed_size).toFixed(2) : '∞') + '×',
+        'save-pos'
+      ));
+      document.getElementById('recoveredText').textContent =
+        data.text.length ? data.text : '(empty file)';
+      document.getElementById('decompressResults').classList.remove('hidden');
+      document.getElementById('btnDownloadOriginal').onclick = () =>
+        downloadBlob(new Blob([data.text], { type: 'text/plain' }), 'original.txt');
+      showMsg('ok', 'Decompressed successfully — the original text is shown above. Compare it with what you uploaded!');
+      document.getElementById('decompressResults').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    } catch (err) {
+      showMsg('error', err.message);
+    } finally {
+      btnDecompress.disabled = false;
+    }
+  });
+
+  // File picking: click + drag & drop
+  dropzone.addEventListener('click', () => fileInput.click());
+  fileInput.addEventListener('change', () => {
+    if (fileInput.files.length) setFile(fileInput.files[0]);
+  });
+  ['dragover', 'dragenter'].forEach(ev =>
+    dropzone.addEventListener(ev, e => { e.preventDefault(); dropzone.classList.add('drag'); }));
+  ['dragleave', 'drop'].forEach(ev =>
+    dropzone.addEventListener(ev, e => { e.preventDefault(); dropzone.classList.remove('drag'); }));
+  dropzone.addEventListener('drop', e => {
+    if (e.dataTransfer.files.length) setFile(e.dataTransfer.files[0]);
+  });
+
+  // Sample text
+  document.getElementById('loadSample').addEventListener('click', e => {
+    e.stopPropagation();
+    const f = new File([SAMPLE_TEXT], 'sample.txt', { type: 'text/plain' });
+    const dt = new DataTransfer();
+    dt.items.add(f);
+    fileInput.files = dt.files;
+    setFile(f);
+  });
+})();
+</script>
+</body>
+</html>
